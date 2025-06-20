@@ -13,7 +13,7 @@ def extract_transactions_from_pdf(pdf_path):
     current_year = None
 
     transaction_regex = re.compile(
-        r"(?P<date>\d{1,2}\.\d{2})\s+\d{1,2}\.\d{2}\s+(?P<description>.+?)\s+(?P<amount>\d{1,3}(?: \d{3})*\.\d{2})\s+(?P<balance>\d{1,3}(?: \d{3})*\.\d{2})$"
+        r"^(?P<date>(?:[1-9]|[12]\d|3[01])\.\d{2})\s+\d{1,2}\.\d{2}\s+(?P<description>.+?)\s+(?P<amount>\d{1,3}(?: \d{3})*\.\d{2})\s+(?P<balance>\d{1,3}(?: \d{3})*\.\d{2})$"
     )
     header_regex = re.compile(r"EXTRATO DE (\d{4})/(\d{2})/\d{2}")
     initial_balance_regex = re.compile(
@@ -28,7 +28,7 @@ def extract_transactions_from_pdf(pdf_path):
             lines = text.split("\n")
 
             for line in lines:
-                match = initial_balance_regex.search(text)
+                match = initial_balance_regex.search(line)
                 if match:
                     previous_balance = float(match.group(1).replace(" ", ""))
 
@@ -52,6 +52,9 @@ def extract_transactions_from_pdf(pdf_path):
                         amount = round(amount, 2)
                         previous_balance = balance
 
+                        if desc == "0.00":
+                            print(f"Skipping transaction with zero description: {line}")
+
                         transactions.append((date, desc, amount))
                     except ValueError as e:
                         print(f"Error parsing date or amount: {e} in line: {line}")
@@ -73,8 +76,11 @@ def export_lines_to_csv(pdf_path, output_path):
                     f.write(text + "\n")
     print(f"Exported lines to {output_path}")
 
-pdf_files = [f for f in os.listdir('files') if f.endswith('.pdf')]
+pdf_files = [os.path.join('files', f) for f in os.listdir('files') if f.endswith('.pdf')]
+# pdf_files = ['files/Extracto_15-06-2025_165651.pdf']
+os.makedirs('files/csv', exist_ok=True)
 for pdf_path in pdf_files:
     print(f"Processing {pdf_path}...")
-    export_transactions_to_csv(pdf_path, f"{pdf_path}_transactions.csv")
+    output_path = os.path.splitext(pdf_path)[0].replace("files/", "files/csv/") + ".csv"
+    export_transactions_to_csv(pdf_path, output_path)
     # export_lines_to_csv(pdf_path, f"{pdf_path}_lines.txt")
